@@ -29,7 +29,7 @@ class Floorboard {
     get length() {
         return this._length
     }
-    
+
     get lengthGroup() {
         return this._lengthGroup;
     }
@@ -39,8 +39,8 @@ class FloorboardRow {
     constructor(length) {
         this._capacity = length;
         this.floorboards = [];
-      }
-    
+    }
+
     get capacity() {
         return this._capacity;
     }
@@ -49,7 +49,7 @@ class FloorboardRow {
         return this.floorboards.reduce((accum, floorboard) => accum + floorboard.length, 0);
     }
 
-    currentFillproportion() {
+    get currentFillproportion() {
         return this.currentFill / this._capacity;
     }
 
@@ -63,19 +63,23 @@ class FloorboardRow {
 
     addFloorboard(floorboard) {
         this.floorboards.push(floorboard)
-    } 
+    }
 }
 
 export const createFloorboards = () => {
-    let floorBoards = [];
+    let floorboards = [];
 
     forEach(groupInfo, ([length, count], lengthGroup) => {
         const arr = Array(count).fill(new Floorboard(lengthGroup));
 
-        arr.forEach((floorBoard) => floorBoards.push(floorBoard));
+        arr.forEach((floorBoard) => floorboards.push(floorBoard));
     });
 
-    return floorBoards;
+    floorboards = shuffle(floorboards);
+
+    console.log(countConsecutives(floorboards));
+
+    return floorboards;
 }
 
 export const calculateRoomRows = (roomWidthStr, boardWidthStr) => {
@@ -108,14 +112,14 @@ export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.075) => 
     let floorboardStock = [...floorboards];
     let fittedRows = [...floorboardRows];
 
-    floorboardStock = orderBy(floorboardStock, (floorboard) => parseInt(floorboard.length, 10), "desc");
-    floorboardStock = shuffle(floorboardStock);
+    // floorboardStock = orderBy(floorboardStock, (floorboard) => parseInt(floorboard.length, 10), "desc");
+    // floorboardStock = shuffle(floorboardStock);
 
     while (floorboardStock.length > 0) {
         const floorboard = floorboardStock[0];
-        const foundFloorboardRow = find(fittedRows, (fittedRow) => fittedRow.projectedFillProportion(floorboard) < (1.0 + tolerance));
+        const foundFloorboardRow = find(fittedRows, (fittedRow) => findBestFitForRow(fittedRow, floorboard, floorboardStock, tolerance));
 
-        if(foundFloorboardRow) {
+        if (foundFloorboardRow) {
             foundFloorboardRow.addFloorboard(floorboardStock.shift());
         } else {
             console.error("Could not find a row with enough room for floorboard", floorboard, `[floorboards: ${floorboardStock.length}, rows: ${fittedRows.length}`);
@@ -124,4 +128,44 @@ export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.075) => 
     }
 
     return fittedRows;
+}
+
+const findBestFitForRow = (floorboardRow, currentFloorboard, remainingFloorboards, tolerance) => {
+    const isProjectionWithinTolerance = floorboardRow.projectedFillProportion(currentFloorboard) < (1.0 + tolerance);
+    const rowIsNotFull = floorboardRow.currentFillproportion < 1.0;
+
+    if (isProjectionWithinTolerance && rowIsNotFull) {
+        // See if any other floorboard would fit better
+        const currentProjectedFill = floorboardRow.projectedFill(currentFloorboard);
+
+        // But only if this one brings us to over capacity
+        if (currentProjectedFill > floorboardRow.capacity) {
+            // Look for another floorboard that might fit better
+            const potentialBetterFit = find(remainingFloorboards, (potentialFloorboard) => { 
+                const potentialProjected = floorboardRow.projectedFill(potentialFloorboard); 
+                return potentialProjected > floorboardRow.capacity && potentialProjected < currentProjectedFill
+            });
+            if (potentialBetterFit) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    return false;
+}
+
+const countConsecutives = (floorboards) => {
+    let prev = "";
+    const consecs = {}
+
+    floorboards.forEach((fb) => {
+        const lg = fb.lengthGroup;
+        if (lg === prev) {
+            consecs[lg] = (consecs[lg] || 0) + 1
+        }
+        prev = lg;
+    })
+
+    return consecs;
 }

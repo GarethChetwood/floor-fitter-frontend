@@ -18,7 +18,7 @@
 </script>
 
 <h1 class="text-3xl font-bold text-center">Floor fitter frontend</h1>
-<div class="h-full flex justify-center">
+<div class="h-full flex justify-center scale-125 scale-x-150">
 	<div class="m-auto relative scale-150">
 		{#each fittedFloor as floorRow, i}
 			<FloorboardRow
