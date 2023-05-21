@@ -1,6 +1,6 @@
 <script lang="js">
 	import sample from 'lodash/sample';
-	import flatten from 'lodash/flatten';
+	import { sortedGroups, boardColors } from '../constants';
 
 	/**
 	 * @type {string}
@@ -26,10 +26,14 @@
 	const positionXPixels = `${position.x}px`;
 	const positionYPixels = `${position.y}px`;
 
-	const fromClass = `from-${sample(['amber-950', 'yellow-950', 'orange-950'])}`;
-	const toClass = `to-${sample(['amber-700', 'yellow-700', 'orange-700'])}`;
+	const colorIndex = sortedGroups.indexOf(boardGroup);
+	const boardColor = boardColors[colorIndex];
+	const fromClass = `from-${boardColor}-800`;
+	const toClass = `to-${boardColor}-500`;
 
 	const finalClass = `border border-stone-700 hover:border-0 ring-blue-500 hover:ring-2 hover:z-10 hover:scale-125 bg-gradient-to-tr ${fromClass} ${toClass} absolute`;
+
+	// console.log('gradient', finalClass);
 </script>
 
 <div
@@ -39,10 +43,10 @@
 	style:top={positionYPixels}
 >
 	<div class="h-full flex">
-        <div class="m-auto text-xs text-white">
-        {boardGroup}
-        </div>
-    </div>
+		<div class="m-auto text-xs text-white">
+			{boardGroup}
+		</div>
+	</div>
 </div>
 
 <style>
