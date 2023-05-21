@@ -5,7 +5,11 @@ import flatten from "lodash/flatten";
 export default {
   content: ['./src/**/*.{html,js,svelte,ts}'],
   theme: {
-    extend: {},
+    extend: {
+      fontSize: {
+        xs: ['10px', '16px']
+      }
+    },
   },
   plugins: [daisyui],
   safelist: flatten(["amber-950", "yellow-950", "orange-950", "amber-700", "yellow-700", "orange-700"].map((color)=> ["from", "to"].map((prefix) => `${prefix}-${color}`)))

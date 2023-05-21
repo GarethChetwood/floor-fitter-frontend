@@ -1,30 +1,45 @@
 <script>
-  import Floorboard from "../components/floorboard.svelte";
-  import { createFloorboards } from "../lib/index";
+	import FloorboardRow from '../components/FloorboardRow.svelte';
+	import { createFloorboards, fitFloorboards } from '../lib/index';
+	import {
+		roomWidthStr,
+		roomLengthStr,
+		boardWidthStr,
+		WHOLE_ROOM_CENTER_OFFSET
+	} from '../constants';
 
-  const floorboards = createFloorboards();
+	const floorboards = createFloorboards();
 
-  const floorboardSize = {
-    width: `${12.5 * 2}`,
-    length: `${20 * 3}`
-  };
+	const boardWidthFloat = parseFloat(boardWidthStr);
+
+	const fittedFloor = fitFloorboards(floorboards, roomWidthStr, roomLengthStr, boardWidthStr);
+
+	// console.log("FitFloor!", fittedFloor);
 </script>
 
-<h1 class="text-3xl font-bold text-center">
-  Floor fitter frontend
-</h1>
+<h1 class="text-3xl font-bold text-center">Floor fitter frontend</h1>
 <div class="h-full flex justify-center">
-  <div class="m-auto">
-    <Floorboard boardWidth={floorboardSize.width} boardLength={floorboardSize.length} position={{ x: "5", y: "10" }} />
-  </div>
+	<div class="m-auto relative scale-150">
+		{#each fittedFloor as floorRow, i}
+			<FloorboardRow
+				{boardWidthStr}
+				position={{
+					x: boardWidthFloat * i - WHOLE_ROOM_CENTER_OFFSET.x,
+					y: -WHOLE_ROOM_CENTER_OFFSET.y
+				}}
+				rowLength={floorRow.capacity}
+				floorboards={floorRow.floorboards}
+			/>
+		{/each}
+	</div>
 </div>
 
 <style lang="postcss">
-  :global(html) {
-    background-color: theme(colors.gray.100);
-    height: 100%;
-  }
-  :global(body) {
-    height: 100%;
-  }
+	:global(html) {
+		background-color: theme(colors.gray.100);
+		height: 100%;
+	}
+	:global(body) {
+		height: 100%;
+	}
 </style>

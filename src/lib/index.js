@@ -1,4 +1,8 @@
+// @ts-nocheck 
 import forEach from "lodash/forEach";
+import find from "lodash/find";
+import orderBy from "lodash/orderBy";
+import shuffle from "lodash/shuffle";
 
 const groupInfo = {
     // "groupname": [size, count]
@@ -18,37 +22,51 @@ const groupInfo = {
 
 class Floorboard {
     constructor(lengthGroup) {
-        this.lengthGroup = lengthGroup;
-        this.length = groupInfo[lengthGroup][0]
+        this._lengthGroup = lengthGroup;
+        this._length = parseInt(groupInfo[lengthGroup][0], 10);
     }
 
     get length() {
-        return this.length
+        return this._length
+    }
+    
+    get lengthGroup() {
+        return this._lengthGroup;
     }
 }
 
 class FloorboardRow {
     constructor(length) {
-        this.capacity = length;
+        this._capacity = length;
         this.floorboards = [];
       }
     
-    currentFill() {
-        return this.floorboards.reduce((accum, floorboard) => accum + getFloorboardLength(floorboard["length_group"]), 0);
+    get capacity() {
+        return this._capacity;
+    }
+
+    get currentFill() {
+        return this.floorboards.reduce((accum, floorboard) => accum + floorboard.length, 0);
+    }
+
+    currentFillproportion() {
+        return this.currentFill / this._capacity;
     }
 
     projectedFill(floorboard) {
-        return currentFill() + getFloorboardLength(floorboard);
+        return this.currentFill + floorboard.length;
     }
 
     projectedFillProportion(floorboard) {
-        return projectedFill(floorboard) / this.capacity;
+        return this.projectedFill(floorboard) / this._capacity;
     }
+
+    addFloorboard(floorboard) {
+        this.floorboards.push(floorboard)
+    } 
 }
 
 export const createFloorboards = () => {
-
-
     let floorBoards = [];
 
     forEach(groupInfo, ([length, count], lengthGroup) => {
@@ -57,13 +75,13 @@ export const createFloorboards = () => {
         arr.forEach((floorBoard) => floorBoards.push(floorBoard));
     });
 
-    console.log(floorBoards);
+    return floorBoards;
 }
 
 export const calculateRoomRows = (roomWidthStr, boardWidthStr) => {
     // @todo: also consider fireplace
-    const roomWidth = parseInt(roomWidthStr, 10);
-    const boardWidth = parseInt(boardWidthStr, 10);
+    const roomWidth = parseFloat(roomWidthStr, 10);
+    const boardWidth = parseFloat(boardWidthStr, 10);
 
     return roomWidth / boardWidth;
 };
@@ -71,9 +89,9 @@ export const calculateRoomRows = (roomWidthStr, boardWidthStr) => {
 
 
 export const fitFloorboards = (floorboards, roomWidthStr, roomLengthStr, boardWidthStr) => {
-    const numRows = calculateRows(roomWidthStr, boardWidthStr);
+    const numRows = calculateRoomRows(roomWidthStr, boardWidthStr);
 
-    const fullRows = Array(Math.floor(numRows)).fill(new FloorboardRow(parseFloat(roomLengthStr)));
+    const fullRows = Array(Math.floor(numRows)).fill(0).map(() => new FloorboardRow(parseFloat(roomLengthStr)));
 
     // const thinRowWidth = numRows - Math.floor(numRows);
 
@@ -82,8 +100,28 @@ export const fitFloorboards = (floorboards, roomWidthStr, roomLengthStr, boardWi
 
     // Implement "best fit" algorithm
     const fittedFloor = bestFitFloor(floorboards, fullRows);
+
+    return fittedFloor;
 };
 
-export const bestFitFloor = (floorboards, floorboardRows) => {
-    
+export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.075) => {
+    let floorboardStock = [...floorboards];
+    let fittedRows = [...floorboardRows];
+
+    floorboardStock = orderBy(floorboardStock, (floorboard) => parseInt(floorboard.length, 10), "desc");
+    floorboardStock = shuffle(floorboardStock);
+
+    while (floorboardStock.length > 0) {
+        const floorboard = floorboardStock[0];
+        const foundFloorboardRow = find(fittedRows, (fittedRow) => fittedRow.projectedFillProportion(floorboard) < (1.0 + tolerance));
+
+        if(foundFloorboardRow) {
+            foundFloorboardRow.addFloorboard(floorboardStock.shift());
+        } else {
+            console.error("Could not find a row with enough room for floorboard", floorboard, `[floorboards: ${floorboardStock.length}, rows: ${fittedRows.length}`);
+            throw Error("Quitting...");
+        }
+    }
+
+    return fittedRows;
 }
