@@ -1,8 +1,9 @@
 // @ts-nocheck 
 import forEach from "lodash/forEach";
 import find from "lodash/find";
-import orderBy from "lodash/orderBy";
 import shuffle from "lodash/shuffle";
+
+import { array_move } from "./lib";
 
 const groupInfo = {
     // "groupname": [size, count]
@@ -35,7 +36,7 @@ class Floorboard {
     }
 }
 
-class FloorboardRow {
+export class FloorboardRow {
     constructor(length) {
         this._capacity = length;
         this.floorboards = [];
@@ -77,8 +78,6 @@ export const createFloorboards = () => {
 
     floorboards = shuffle(floorboards);
 
-    console.log(countConsecutives(floorboards));
-
     return floorboards;
 }
 
@@ -108,7 +107,7 @@ export const fitFloorboards = (floorboards, roomWidthStr, roomLengthStr, boardWi
     return fittedFloor;
 };
 
-export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.075) => {
+export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
     let floorboardStock = [...floorboards];
     let fittedRows = [...floorboardRows];
 
@@ -155,7 +154,7 @@ const findBestFitForRow = (floorboardRow, currentFloorboard, remainingFloorboard
     return false;
 }
 
-const countConsecutives = (floorboards) => {
+export const countConsecutives = (floorboards) => {
     let prev = "";
     const consecs = {}
 
@@ -169,3 +168,37 @@ const countConsecutives = (floorboards) => {
 
     return consecs;
 }
+
+export const moveConsec = (floorboards) => {
+    let consecIndex;
+    let prevGroup;
+
+    // Find consec index
+    floorboards.some((fb, i) => {
+        if (fb.lengthGroup === prevGroup) {
+            consecIndex = i;
+            return true
+        } else {
+            prevGroup = fb.lengthGroup;
+        }
+    });
+
+    prevGroup = undefined;
+    let newIndex;
+
+    // Find new location
+    floorboards.some((fb, i) => {
+        if(fb.lengthGroup !== prevGroup) {
+            const lg = fb.lengthGroup;
+            const nextGroup = floorboards[i + 1]?.lengthGroup;
+            if( nextGroup !== lg && prevGroup !== lg) {
+                newIndex = i;
+                return true;
+            } else {
+                prevGroup = fb.lengthGroup;
+            }
+        }
+    });
+
+    return array_move(floorboards,consecIndex, newIndex);
+};
