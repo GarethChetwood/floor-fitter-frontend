@@ -14,13 +14,15 @@
 		fitFloorboards,
 		countConsecutives,
 		saveFloorboardsUrl,
-		parseToFittedFloor
+		parseToFittedFloor,
+		calculateOverfill
 	} from '../lib/index';
 	import {
 		roomWidthStr,
 		roomLengthStr,
 		boardWidthStr,
-		WHOLE_ROOM_CENTER_OFFSET
+		WHOLE_ROOM_CENTER_OFFSET,
+		OVERFILL_TOLERANCE
 	} from '../constants';
 
 	let consecs = {};
@@ -35,7 +37,7 @@
 	let markedRow = null;
 
 	const onClickShuffle = () => {
-		floorboards = shuffleFloorboards(floorboards);
+		floorboards = shuffleFloorboards(floorboards, OVERFILL_TOLERANCE);
 	};
 
 	const onClickShuffleRows = () => {
@@ -72,9 +74,20 @@
 		}
 	};
 
+	let initial = 0;
+	let overfillTolerance = OVERFILL_TOLERANCE;
+
 	$: {
 		consecs = countConsecutives(floorboards);
-		fittedFloor = fitFloorboards(floorboards, roomWidthStr, roomLengthStr, boardWidthStr);
+		fittedFloor = fitFloorboards(
+			floorboards,
+			roomWidthStr,
+			roomLengthStr,
+			boardWidthStr,
+			OVERFILL_TOLERANCE,
+			initial
+		);
+		initial = 1;
 	}
 
 	$: {
@@ -83,9 +96,7 @@
 		rowMatchingSiblings = fittedFloor.map((floorRow, i) => {
 			return floorRow.matchesSiblings(fittedFloor);
 		});
-		overfill = fittedFloor
-			.filter((row) => row.currentFill > row.capacity)
-			.map((row) => round(row.currentFill - row.capacity, 2));
+		overfill = calculateOverfill(fittedFloor);
 	}
 
 	const boardWidthFloat = parseFloat(boardWidthStr);
@@ -115,8 +126,24 @@
 		{overfill.map((val) => round(val)).join(' | ')}
 	</h2>
 	<hr />
+	<div class="flex justify-center">
+		<label class="label">
+			<span class="label-text">Overfill tolerance</span>
+			<input
+				bind:value={overfillTolerance}
+				type="text"
+				placeholder="Type here"
+				class="input input-bordered w-full max-w-xs"
+			/>
+		</label>
+	</div>
 	<div class="flex justify-center space-x-4 mt-5">
-		<button class="btn btn-primary" on:click={onClickShuffle}>Shuffle</button>
+		<button class="btn btn-primary" on:click={onClickShuffle}>Shuffle Override</button>
+		<button
+			class="btn btn-primary"
+			disabled={round(sum(overfill)) < OVERFILL_TOLERANCE}
+			on:click={onClickShuffle}>Shuffle</button
+		>
 		<button class="btn btn-secondary" on:click={onClickShuffleRows}>Shuffle Rows</button>
 		<button class="btn" on:click={onClickSaveAs}>Save</button>
 		<FloorboardFileInput {setFileData} />

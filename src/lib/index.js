@@ -7,14 +7,14 @@ import min from 'lodash/min';
 import map from 'lodash/map';
 import sum from 'lodash/sum';
 import values from 'lodash/values';
-import isEmpty from 'lodash/isEmpty';
+import round from 'lodash/round';
 import isEqual from 'lodash/isEqual';
 import filter from 'lodash/filter';
 
 import { saveAs } from 'file-saver';
 
 import { array_move } from './lib';
-import { groupInfo, CHIMNEY_BREAST } from '../constants';
+import { groupInfo, CHIMNEY_BREAST, OVERFILL_TOLERANCE } from '../constants';
 
 class Floorboard {
 	constructor(lengthGroup, offset = 0) {
@@ -112,20 +112,27 @@ export class FloorboardRow {
 	// 	return matchesPrev || matchesNext;
 	// }
 
-
 	matchesSiblings(allRows) {
 		return this.matchingBoards(allRows).length > 0;
 	}
 
 	static hasBoard(boards, specimen) {
-		const match = boards.some((board) => board.lengthGroup === specimen.lengthGroup && board.offset === specimen.offset);
+		const match = boards.some(
+			(board) => board.lengthGroup === specimen.lengthGroup && board.offset === specimen.offset
+		);
 		// if (match) console.log("Found a match!", specimen, find(boards, (board) => board.lengthGroup === specimen.lengthGroup && board.offset === specimen.offset));
 		return match;
 	}
 
 	matchingBoards(allRows) {
-		const [prevBoards, nextBoards] = [this._index - 1, this._index + 1].map((i) => allRows[i]?.floorboards || []);
-		const matchedIndices = map(this.floorboards, (thisBoard, i) => FloorboardRow.hasBoard(prevBoards, thisBoard) || FloorboardRow.hasBoard(nextBoards, thisBoard) ? i : false);
+		const [prevBoards, nextBoards] = [this._index - 1, this._index + 1].map(
+			(i) => allRows[i]?.floorboards || []
+		);
+		const matchedIndices = map(this.floorboards, (thisBoard, i) =>
+			FloorboardRow.hasBoard(prevBoards, thisBoard) || FloorboardRow.hasBoard(nextBoards, thisBoard)
+				? i
+				: false
+		);
 
 		const finalMatches = filter(matchedIndices, (val) => val !== false);
 		// if (finalMatches.length > 0) console.log("Matching boards for ", this._index, this._floorboards, "and", prevBoards, nextBoards, "are ", finalMatches);
@@ -146,7 +153,7 @@ export const createFloorboards = () => {
 	return floorboards;
 };
 
-export const shuffleFloorboards = (floorboards) => {
+export const shuffleFloorboards = (floorboards, overfillTolerance) => {
 	let shuffledBoards = shuffle(floorboards);
 
 	// Move around consecutive boards of the same type
@@ -155,7 +162,7 @@ export const shuffleFloorboards = (floorboards) => {
 	}
 
 	return shuffledBoards;
-}
+};
 
 export const calculateRoomRows = (roomWidthStr, boardWidthStr) => {
 	// @todo: also consider fireplace
@@ -165,7 +172,14 @@ export const calculateRoomRows = (roomWidthStr, boardWidthStr) => {
 	return roomWidth / boardWidth;
 };
 
-export const fitFloorboards = (floorboards, roomWidthStr, roomLengthStr, boardWidthStr) => {
+export const fitFloorboards = (
+	floorboards,
+	roomWidthStr,
+	roomLengthStr,
+	boardWidthStr,
+	overfillTolerance,
+	initialCount
+) => {
 	const numRows = calculateRoomRows(roomWidthStr, boardWidthStr);
 
 	const chimneyRows = CHIMNEY_BREAST.width / parseFloat(boardWidthStr, 10);
@@ -193,9 +207,29 @@ export const fitFloorboards = (floorboards, roomWidthStr, roomLengthStr, boardWi
 	// Implement "best fit" algorithm
 	const fittedFloor = bestFitFloor(floorboards, allRows);
 
-	const nonConsecFloor = moveFittedConsecs(fittedFloor)
+	const nonConsecFloor = moveFittedConsecs(fittedFloor);
+
+	const overfill = round(sum(calculateOverfill(nonConsecFloor)));
+	console.log('Fitted! overfill: ', overfill);
+
+	if (overfill > overfillTolerance && initialCount > 0) {
+		return fitFloorboards(
+			shuffleFloorboards(floorboards),
+			roomWidthStr,
+			roomLengthStr,
+			boardWidthStr,
+			overfillTolerance,
+			initialCount
+		);
+	}
 
 	return nonConsecFloor;
+};
+
+export const calculateOverfill = (fittedFloor) => {
+	return fittedFloor
+		.filter((row) => row.currentFill > row.capacity)
+		.map((row) => round(row.currentFill - row.capacity, 2));
 };
 
 const moveFittedConsecs = (fittedFloor) => {
@@ -208,15 +242,17 @@ const moveFittedConsecs = (fittedFloor) => {
 		while (totalConsecutives(boards) > 0) {
 			let newBoards = moveConsec(boards);
 
-			if (isEqual(boards, newBoards)) { break; }
+			if (isEqual(boards, newBoards)) {
+				break;
+			}
 			boards = newboards;
 		}
 
 		nonConsecFloor[i].floorboards = boards;
-	})
+	});
 
-	return nonConsecFloor
-}
+	return nonConsecFloor;
+};
 
 export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 	let floorboardStock = [...floorboards];
@@ -355,24 +391,33 @@ export const moveConsec = (floorboards) => {
 	return array_move(floorboards, consecIndex, newIndex);
 };
 
-
 export const saveFloorboardsUrl = (fittedFloor) => {
 	const saveableFloor = fittedFloor.map((floorRow) => {
-		const rawObjBoards = floorRow.floorboards.map((board) => ({ lengthGroup: board.lengthGroup, offset: board.offset }));
+		const rawObjBoards = floorRow.floorboards.map((board) => ({
+			lengthGroup: board.lengthGroup,
+			offset: board.offset
+		}));
 
-		return { floorboards: rawObjBoards, index: floorRow.index, length: floorRow.capacity }
+		return { floorboards: rawObjBoards, index: floorRow.index, length: floorRow.capacity };
 	});
 
-	const fileName = prompt("Enter file name");
+	const fileName = prompt('Enter file name');
 
-	return saveAs(new Blob([JSON.stringify(saveableFloor)]), fileName || "floorboards.json");
-}
+	return saveAs(new Blob([JSON.stringify(saveableFloor)]), fileName || 'floorboards.json');
+};
 
 export const parseToFittedFloor = (jsonStr) => {
 	const parsedData = JSON.parse(jsonStr);
 
-	const newData = parsedData.map(({ length, index, floorboards }) => new FloorboardRow(length, index, floorboards.map(({ lengthGroup, offset }) => new Floorboard(lengthGroup, offset))));
-	console.log("New data !", newData);
+	const newData = parsedData.map(
+		({ length, index, floorboards }) =>
+			new FloorboardRow(
+				length,
+				index,
+				floorboards.map(({ lengthGroup, offset }) => new Floorboard(lengthGroup, offset))
+			)
+	);
+	console.log('New data !', newData);
 
 	return newData;
-}
+};
