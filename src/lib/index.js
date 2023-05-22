@@ -7,8 +7,11 @@ import min from 'lodash/min';
 import map from 'lodash/map';
 import sum from 'lodash/sum';
 import values from 'lodash/values';
-import sortBy from 'lodash/sortBy';
 import isEmpty from 'lodash/isEmpty';
+import isEqual from 'lodash/isEqual';
+import filter from 'lodash/filter';
+
+import { saveAs } from 'file-saver';
 
 import { array_move } from './lib';
 import { groupInfo, CHIMNEY_BREAST } from '../constants';
@@ -38,9 +41,9 @@ class Floorboard {
 }
 
 export class FloorboardRow {
-	constructor(length, index) {
+	constructor(length, index, floorboards = []) {
 		this._capacity = length;
-		this.floorboards = [];
+		this._floorboards = floorboards;
 		this._index = index;
 	}
 
@@ -60,6 +63,14 @@ export class FloorboardRow {
 		return this._index;
 	}
 
+	get floorboards() {
+		return this._floorboards;
+	}
+
+	set floorboards(val) {
+		this._floorboards = val;
+	}
+
 	set index(val) {
 		this._index = val;
 	}
@@ -72,45 +83,54 @@ export class FloorboardRow {
 		return this.projectedFill(floorboard) / this._capacity;
 	}
 
-	addFloorboard(floorboard, rowId) {
-		const offset = sum(map(this.floorboards, 'length'));
-		floorboard.offset = offset;
-		this.floorboards.push(floorboard);
+	addFloorboard(floorboard) {
+		this.floorboards.push(new Floorboard(floorboard.lengthGroup, this.currentFill));
 	}
 
-	matchesRow(siblingRow) {
-		const siblingBoards = siblingRow?.floorboards || [];
-		return isEmpty(siblingBoards)
-			? false
-			: this.floorboards.some((boardFromThis) =>
-					sortBy(siblingBoards, 'offset').some(
-						(siblingBoard) =>
-							console.log(
-								'...Checking match between',
-								this._index,
-								'and',
-								siblingRow.index,
-								'-',
-								boardFromThis.lengthGroup === siblingBoard.lengthGroup &&
-									boardFromThis.offset === siblingBoard.offset,
-								'!',
-								boardFromThis.lengthGroup,
-								boardFromThis.offset,
-								siblingBoard.lengthGroup,
-								siblingBoard.offset
-							) ||
-							(boardFromThis.lengthGroup === siblingBoard.lengthGroup &&
-								boardFromThis.offset === siblingBoard.offset)
-					)
-			  );
+	get consecutives() {
+		return countConsecutives(this.floorboards);
 	}
 
-	matchesSiblings(prev, next) {
-		console.log('Checking if', this, 'matches', prev, 'or', next);
-		const [matchesPrev, matchesNext] = [prev, next].map(this.matchesRow.bind(this));
-		if (matchesPrev || matchesNext) console.log('Matches!', matchesPrev, matchesNext);
+	// matchesRow(siblingRow) {
+	// 	const siblingBoards = siblingRow?.floorboards || [];
+	// 	return isEmpty(siblingBoards)
+	// 		? false
+	// 		: this.floorboards.some((boardFromThis) =>
+	// 			siblingBoards.some(
+	// 				(siblingBoard) =>
+	// 				(boardFromThis.lengthGroup === siblingBoard.lengthGroup &&
+	// 					boardFromThis.offset === siblingBoard.offset)
+	// 			)
+	// 		);
+	// }
 
-		return matchesPrev || matchesNext;
+	// matchesSiblings(prev, next) {
+	// 	console.log('Checking if', this, 'matches', prev, 'or', next);
+	// 	const [matchesPrev, matchesNext] = [prev, next].map(this.matchesRow.bind(this));
+	// 	if (matchesPrev || matchesNext) console.log(this._index, 'Matches!', matchesPrev, matchesNext);
+
+	// 	return matchesPrev || matchesNext;
+	// }
+
+
+	matchesSiblings(allRows) {
+		return this.matchingBoards(allRows).length > 0;
+	}
+
+	static hasBoard(boards, specimen) {
+		const match = boards.some((board) => board.lengthGroup === specimen.lengthGroup && board.offset === specimen.offset);
+		// if (match) console.log("Found a match!", specimen, find(boards, (board) => board.lengthGroup === specimen.lengthGroup && board.offset === specimen.offset));
+		return match;
+	}
+
+	matchingBoards(allRows) {
+		const [prevBoards, nextBoards] = [this._index - 1, this._index + 1].map((i) => allRows[i]?.floorboards || []);
+		const matchedIndices = map(this.floorboards, (thisBoard, i) => FloorboardRow.hasBoard(prevBoards, thisBoard) || FloorboardRow.hasBoard(nextBoards, thisBoard) ? i : false);
+
+		const finalMatches = filter(matchedIndices, (val) => val !== false);
+		// if (finalMatches.length > 0) console.log("Matching boards for ", this._index, this._floorboards, "and", prevBoards, nextBoards, "are ", finalMatches);
+
+		return finalMatches;
 	}
 }
 
@@ -123,14 +143,19 @@ export const createFloorboards = () => {
 		arr.forEach((floorBoard) => floorboards.push(floorBoard));
 	});
 
-	floorboards = shuffle(floorboards);
-
-	while (totalConsecutives(floorboards) > 0) {
-		floorboards = moveConsec(floorboards);
-	}
-
 	return floorboards;
 };
+
+export const shuffleFloorboards = (floorboards) => {
+	let shuffledBoards = shuffle(floorboards);
+
+	// Move around consecutive boards of the same type
+	while (totalConsecutives(shuffledBoards) > 0) {
+		shuffledBoards = moveConsec(shuffledBoards);
+	}
+
+	return shuffledBoards;
+}
 
 export const calculateRoomRows = (roomWidthStr, boardWidthStr) => {
 	// @todo: also consider fireplace
@@ -161,8 +186,6 @@ export const fitFloorboards = (floorboards, roomWidthStr, roomLengthStr, boardWi
 		...allPartialRows.map((rowLength, i) => new FloorboardRow(rowLength, i + fullRows.length))
 	];
 
-	console.log('Chimney rows:', allPartialRows);
-	console.log('All rows:', allRows);
 	// const thinRowWidth = numRows - Math.floor(numRows);
 
 	// @todo FIREPLACE!!!
@@ -170,8 +193,30 @@ export const fitFloorboards = (floorboards, roomWidthStr, roomLengthStr, boardWi
 	// Implement "best fit" algorithm
 	const fittedFloor = bestFitFloor(floorboards, allRows);
 
-	return fittedFloor;
+	const nonConsecFloor = moveFittedConsecs(fittedFloor)
+
+	return nonConsecFloor;
 };
+
+const moveFittedConsecs = (fittedFloor) => {
+	let nonConsecFloor = fittedFloor;
+
+	nonConsecFloor.forEach((floorRow, i) => {
+		let boards = floorRow.floorboards;
+
+		// Move around consecutive boards of the same type
+		while (totalConsecutives(boards) > 0) {
+			let newBoards = moveConsec(boards);
+
+			if (isEqual(boards, newBoards)) { break; }
+			boards = newboards;
+		}
+
+		nonConsecFloor[i].floorboards = boards;
+	})
+
+	return nonConsecFloor
+}
 
 export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 	let floorboardStock = [...floorboards];
@@ -191,11 +236,11 @@ export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 		if (foundFloorboardRow) {
 			foundFloorboardRow.addFloorboard(floorboardStock.shift(), foundFloorboardRowIndex);
 		} else {
-			console.error(
-				'Could not find a row with enough room for floorboard',
-				floorboard,
-				`[floorboards: ${floorboardStock.length}, rows: ${fittedRows.length}`
-			);
+			// console.error(
+			// 	'Could not find a row with enough room for floorboard',
+			// 	floorboard,
+			// 	`[floorboards: ${floorboardStock.length}, rows: ${fittedRows.length}`
+			// );
 			excessFloorboards.push(floorboardStock.shift());
 			// throw Error('Quitting...');
 		}
@@ -298,7 +343,7 @@ export const moveConsec = (floorboards) => {
 			const lg = fb.lengthGroup;
 			const nextGroup = floorboards[i + 1]?.lengthGroup;
 
-			if (nextGroup !== lg && prevGroup !== lg && consecGroup != lg && nextGroup != prevGroup) {
+			if (![nextGroup, prevGroup, consecGroup].includes(lg) && nextGroup != prevGroup) {
 				newIndex = i;
 				return true;
 			} else {
@@ -310,7 +355,24 @@ export const moveConsec = (floorboards) => {
 	return array_move(floorboards, consecIndex, newIndex);
 };
 
-// export const matchingRows = (fittedRows) => {
 
-//     fittedRows.forEach((row) => )
-// }
+export const saveFloorboardsUrl = (fittedFloor) => {
+	const saveableFloor = fittedFloor.map((floorRow) => {
+		const rawObjBoards = floorRow.floorboards.map((board) => ({ lengthGroup: board.lengthGroup, offset: board.offset }));
+
+		return { floorboards: rawObjBoards, index: floorRow.index, length: floorRow.capacity }
+	});
+
+	const fileName = prompt("Enter file name");
+
+	return saveAs(new Blob([JSON.stringify(saveableFloor)]), fileName || "floorboards.json");
+}
+
+export const parseToFittedFloor = (jsonStr) => {
+	const parsedData = JSON.parse(jsonStr);
+
+	const newData = parsedData.map(({ length, index, floorboards }) => new FloorboardRow(length, index, floorboards.map(({ lengthGroup, offset }) => new Floorboard(lengthGroup, offset))));
+	console.log("New data !", newData);
+
+	return newData;
+}

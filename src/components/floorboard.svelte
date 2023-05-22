@@ -21,6 +21,9 @@
 	 */
 	export let boardGroup;
 
+	export let isOverhang;
+	export let isMatchingAdjacent;
+
 	const boardWidthPixels = `${boardWidth}px`;
 	const boardLengthPixels = `${boardLength}px`;
 	const positionXPixels = `${position.x}px`;
@@ -31,13 +34,15 @@
 	const fromClass = `from-${boardColor}-800`;
 	const toClass = `to-${boardColor}-500`;
 
-	const finalClass = `border border-stone-700 hover:border-0 ring-blue-500 hover:ring-2 hover:z-10 hover:scale-125 bg-gradient-to-tr ${fromClass} ${toClass} absolute`;
+	const finalClass = `border hover:border-0 ring-blue-400 hover:ring-2 hover:z-20 hover:scale-125 bg-gradient-to-tr ${fromClass} ${toClass} absolute`;
 
 	// console.log('gradient', finalClass);
 </script>
 
 <div
-	class={finalClass}
+	class={`${finalClass} ${isOverhang && 'opacity-50'} ${
+		isMatchingAdjacent ? 'z-10 border-white' : 'border-stone-700'
+	}`}
 	style:width={boardWidthPixels}
 	style:height={boardLengthPixels}
 	style:top={positionYPixels}

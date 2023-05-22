@@ -30,6 +30,7 @@
 	"type": "module",
 	"dependencies": {
 		"daisyui": "^2.51.6",
+		"file-saver": "^2.0.5",
 		"lodash": "^4.17.21"
 	}
 }

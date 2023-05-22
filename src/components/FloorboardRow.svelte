@@ -1,4 +1,5 @@
 <script lang="js">
+	import noop from 'lodash/noop';
 	import Floorboard from './Floorboard.svelte';
 	import { WHOLE_ROOM_CENTER_OFFSET } from '../constants';
 
@@ -17,6 +18,12 @@
 	export let position;
 	export let floorRowIndex;
 	export let floorboards;
+	export let isOverCapacity;
+	export let hasConsecs;
+	export let matchesAdjacent;
+	export let matchingBoards;
+	export let markSwapRow;
+	export let isMarkedForSwap;
 
 	const boardWidthPixels = `${boardWidthStr}px`;
 	const rowLengthPixels = `${rowLength}px`;
@@ -41,16 +48,38 @@
 </script>
 
 <div
-	class="border border-gray-500 absolute"
+	class={`border border-gray-500 ${isMarkedForSwap && 'grayscale'} absolute`}
 	style:width={boardWidthPixels}
 	style:height={rowLengthPixels}
 	style:left={positionXPixels}
 	style:top={positionYPixels}
 >
-	<div class="m-auto text-xs text-white relative text-center" style:transform="translate(0, -15px)">
+	<div
+		class="m-auto text-xs text-white relative text-center"
+		style:transform="translate(0, -15px)"
+		on:click={markSwapRow}
+		on:keydown={noop}
+	>
 		{floorRowIndex}
 	</div>
-	{#each floorboardsWithPositions as floorboard}
+	{#if hasConsecs}
+		<div
+			class="m-auto text-xs text-white absolute text-center"
+			style:transform="translate(0, -38px)"
+		>
+			⚠
+		</div>
+	{/if}
+	{#if matchesAdjacent}
+		<div
+			class="m-auto text-xs text-white absolute text-center"
+			style:transform="translate(0, -48px)"
+		>
+			🤼
+		</div>
+	{/if}
+
+	{#each floorboardsWithPositions as floorboard, i}
 		<Floorboard
 			boardWidth={boardWidthStr}
 			boardLength={floorboard.length}
@@ -58,6 +87,8 @@
 				x: positionXPixels,
 				y: position.y + floorboard.offset + WHOLE_ROOM_CENTER_OFFSET.y
 			}}
+			isMatchingAdjacent={matchingBoards.includes(i)}
+			isOverhang={i === floorboardsWithPositions.length - 1 && isOverCapacity}
 			boardGroup={floorboard.lengthGroup}
 		/>
 	{/each}
