@@ -10,7 +10,6 @@
 			let binfile = files[0];
 			let reader = new FileReader();
 			reader.onload = function (evt) {
-				console.log('File chosen! Decoding...');
 				data = new Uint8Array(evt.target.result);
 				data = new TextDecoder().decode(data);
 				setFileData(data);

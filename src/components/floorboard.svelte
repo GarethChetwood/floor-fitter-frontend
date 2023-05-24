@@ -35,8 +35,6 @@
 	const toClass = `to-${boardColor}-500`;
 
 	const finalClass = `border hover:border-0 ring-blue-400 hover:ring-2 hover:z-20 hover:scale-125 bg-gradient-to-tr ${fromClass} ${toClass} absolute`;
-
-	// console.log('gradient', finalClass);
 </script>
 
 <div

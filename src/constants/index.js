@@ -1,20 +1,21 @@
 import keys from 'lodash/keys';
 
 const roomWidthRaw = 322.5;
-const roomLengthRaw = 490.0;
+const roomLengthRaw = 499.0;
 
-const expansionGap = 1.2;
+const expansionGap = 1;
+const chimneyExpansion = 0;
 
 export const roomWidthStr = `${roomWidthRaw - 2 * expansionGap}`;
 export const roomLengthStr = `${roomLengthRaw - 2 * expansionGap}`;
 export const boardWidthStr = '12.2';
 
-export const OVERFILL_TOLERANCE = 230;
+export const OVERFILL_TOLERANCE = 235;
 
 export const CHIMNEY_BREAST = {
 	width: 46,
-	length: 141,
-	offset: 125
+	length: 141 + chimneyExpansion * 2,
+	offset: 123
 };
 
 export const WHOLE_ROOM_CENTER_OFFSET = {
@@ -26,9 +27,9 @@ export const groupInfo = {
 	// "groupname": [size, count]
 	A: ['30', 25],
 	B: ['40', 3],
-	C: ['45', 52],
+	C: ['45', 58],
 	D: ['49', 3],
-	E: ['55', 5],
+	E: ['55', 6],
 	FG: ['60', 29],
 	H: ['65', 7],
 	I: ['70', 3],

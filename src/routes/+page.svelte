@@ -41,11 +41,10 @@
 	};
 
 	const onClickShuffleRows = () => {
-		fittedFloor = [...shuffle(fittedFloor.slice(0, -4)), ...fittedFloor.slice(-4)];
+		fittedFloor = [...shuffle(fittedFloor.slice(0, -8)), ...fittedFloor.slice(-8)];
 		fittedFloor.forEach((floorRow, i) => {
 			floorRow.index = i;
 		});
-		// fittedFloor = fittedFloor;
 	};
 
 	const onClickMarkRow = (i) => () => {
@@ -54,7 +53,6 @@
 		} else if (markedRow == i) {
 			markedRow = null;
 		} else {
-			console.log('Swapping!', markedRow, i);
 			[fittedFloor[markedRow], fittedFloor[i]] = [fittedFloor[i], fittedFloor[markedRow]];
 			fittedFloor.forEach((floorRow, i) => {
 				floorRow.index = i;
@@ -68,7 +66,6 @@
 	};
 
 	export let setFileData = (data) => {
-		console.log('Setting file data!!!');
 		if (data !== null) {
 			fittedFloor = parseToFittedFloor(data);
 		}

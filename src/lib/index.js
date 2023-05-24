@@ -10,6 +10,7 @@ import values from 'lodash/values';
 import round from 'lodash/round';
 import isEqual from 'lodash/isEqual';
 import filter from 'lodash/filter';
+import flatten from 'lodash/flatten';
 
 import { saveAs } from 'file-saver';
 
@@ -105,9 +106,7 @@ export class FloorboardRow {
 	// }
 
 	// matchesSiblings(prev, next) {
-	// 	console.log('Checking if', this, 'matches', prev, 'or', next);
 	// 	const [matchesPrev, matchesNext] = [prev, next].map(this.matchesRow.bind(this));
-	// 	if (matchesPrev || matchesNext) console.log(this._index, 'Matches!', matchesPrev, matchesNext);
 
 	// 	return matchesPrev || matchesNext;
 	// }
@@ -120,7 +119,6 @@ export class FloorboardRow {
 		const match = boards.some(
 			(board) => board.lengthGroup === specimen.lengthGroup && board.offset === specimen.offset
 		);
-		// if (match) console.log("Found a match!", specimen, find(boards, (board) => board.lengthGroup === specimen.lengthGroup && board.offset === specimen.offset));
 		return match;
 	}
 
@@ -135,7 +133,6 @@ export class FloorboardRow {
 		);
 
 		const finalMatches = filter(matchedIndices, (val) => val !== false);
-		// if (finalMatches.length > 0) console.log("Matching boards for ", this._index, this._floorboards, "and", prevBoards, nextBoards, "are ", finalMatches);
 
 		return finalMatches;
 	}
@@ -193,7 +190,13 @@ export const fitFloorboards = (
 		CHIMNEY_BREAST.offset,
 		roomLengthFloat - CHIMNEY_BREAST.offset - CHIMNEY_BREAST.length
 	];
-	const allPartialRows = [...partialRows, ...partialRows].sort().reverse();
+	const allPartialRows = flatten(
+		Array(4)
+			.fill(0)
+			.map(() => partialRows)
+	)
+		.sort()
+		.reverse();
 
 	const allRows = [
 		...fullRows,
@@ -210,16 +213,15 @@ export const fitFloorboards = (
 	const nonConsecFloor = moveFittedConsecs(fittedFloor);
 
 	const overfill = round(sum(calculateOverfill(nonConsecFloor)));
-	console.log('Fitted! overfill: ', overfill);
 
-	if (overfill > overfillTolerance && initialCount > 0) {
+	if (overfill > overfillTolerance && initialCount > 0 && initialCount < 999) {
 		return fitFloorboards(
 			shuffleFloorboards(floorboards),
 			roomWidthStr,
 			roomLengthStr,
 			boardWidthStr,
 			overfillTolerance,
-			initialCount
+			initialCount + 1
 		);
 	}
 
@@ -278,7 +280,6 @@ export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 			// 	`[floorboards: ${floorboardStock.length}, rows: ${fittedRows.length}`
 			// );
 			excessFloorboards.push(floorboardStock.shift());
-			// throw Error('Quitting...');
 		}
 	}
 
@@ -417,7 +418,6 @@ export const parseToFittedFloor = (jsonStr) => {
 				floorboards.map(({ lengthGroup, offset }) => new Floorboard(lengthGroup, offset))
 			)
 	);
-	console.log('New data !', newData);
 
 	return newData;
 };

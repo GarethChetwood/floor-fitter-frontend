@@ -43,8 +43,6 @@
 	);
 	const positionXPixels = `${position.x}px`;
 	const positionYPixels = `${position.y}px`;
-
-	// console.log(floorboardsWithPositions);
 </script>
 
 <div
